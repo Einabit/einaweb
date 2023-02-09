@@ -6,7 +6,7 @@ const { exec } = require("child_process");
 const filew = new FileWrapper;
 
 const parseInstructions = filecontent => {
-  const instrRegEx = /^<%#autoweb:(.+\s?.*)%>/;
+  const instrRegEx = /^<%#einaweb:(.+\s?.*)%>/;
   const getInstruction = line => line && instrRegEx.exec(line);
   return filecontent.split("\n").reduce((acc, cur) => {
     const inst = getInstruction(cur);
