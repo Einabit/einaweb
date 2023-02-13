@@ -85,8 +85,8 @@ const processTemplate = filePath => {
   });
 }
 
-const renderEJSTemplate = (content, data) => {
-  return ejs.render(content, { data }, { views: ["templates"] }).trim();
+const renderEJSTemplate = (content, data, file) => {
+  return ejs.render(content, { data, file }, { views: ["templates"] }).trim();
 }
 
 const onlyTemplates = fileName => fileName.endsWith(".ejs"); // we do not want to include files that contain include files - keyword \inc\ ?
@@ -146,7 +146,7 @@ self.buildSub = async function(cwd, args = []) {
     return processTemplate(path).then(desc => {
       function innerBuild(desc, data) {
         const fileName = desc.generateName(data);
-        const result = renderEJSTemplate(desc.content, data);
+        const result = renderEJSTemplate(desc.content, data, fileName);
         let writePath = ["public", fileName].join("/");
         if(!options.quiet) console.log("compiled " + fileName);
         filew.writeFile(writePath, result);
