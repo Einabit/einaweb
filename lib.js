@@ -106,8 +106,8 @@ self.initSub = async function(cwd, args) {
 self.watchSub = async function(cwd, args) {
   const [] = args;
   const publicFolderPath = [cwd, "public"].join("/");
-  exec(__dirname + "/node_modules/.bin/http-server " + publicFolderPath, (err) => {
-    if(!err) throw err;
+  exec(__dirname + "/../http-server/bin/http-server " + publicFolderPath, (err) => {
+    if(err) throw err;
   });
 
   console.log(`serving ${publicFolderPath} in http:/localhost:8080/`)
