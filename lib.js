@@ -1,4 +1,5 @@
 const FileWrapper = require("./filew");
+const launch = require("./static");
 const ejs = require("ejs");
 const dlv = require("dlv");
 const { exec } = require("child_process");
@@ -104,12 +105,11 @@ self.initSub = async function(cwd, args) {
 }
 
 self.watchSub = async function(cwd, args) {
-  const [] = args;
-  const publicFolderPath = [cwd, "public"].join("/");
-  exec(__dirname + "/../http-server/bin/http-server " + publicFolderPath, (err) => {
-    if(err) throw err;
-  });
+  const fixEmpty = "FIX_EMPTY_EXTENSION";
 
+  const publicFolderPath = [cwd, "public"].join("/");
+
+  launch(publicFolderPath, 8080, args.includes(fixEmpty));
   console.log(`serving ${publicFolderPath} in http:/localhost:8080/`)
   self.buildSub(cwd, ["quiet"])
   filew.watchPath("templates", filename => {
