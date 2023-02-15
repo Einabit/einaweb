@@ -6,10 +6,8 @@ module.exports = (root, port, fixEmptyExtension) => {
   const handler = ecstatic({
     root,
     showDir: true,
-    mimeTypes: (file, defaultValue) => {
-      if (fixEmptyExtension && !/\..+$/.test(file)) return "text/html";
-      else return defaultValue;
-    }
+    mimeTypes: file =>
+      fixEmptyExtension && !/\..+$/.test(file) && "text/html"
   });
 
   http.createServer(handler).listen(port);
