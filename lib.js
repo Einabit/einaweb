@@ -4,6 +4,8 @@ const ejs = require("ejs");
 const dlv = require("dlv");
 const { exec } = require("child_process");
 
+const FILENAME_FROM_PATH_RX = /.*\/(.+)\..+$/;
+
 const filew = new FileWrapper;
 
 const parseInstructions = filecontent => {
@@ -26,14 +28,6 @@ const loadJson = path => {
     console.log("Error loading JSON file: " + path);
     return undefined;
   })
-}
-
-const buildName = (repl, data = {}) => {
-  const keys = Object.keys(data);
-  if(!keys.length) return repl;
-  const toBeReplaced = keys.filter(key => repl.includes("$" + key));
-  if(!toBeReplaced.length) return repl;
-  else return toBeReplaced.reduce((acc, cur) => acc.replace("$" + cur, data[cur]), repl);
 }
 
 const chainPromises = (invokers, result) => {
@@ -76,7 +70,7 @@ const processTemplate = filePath => {
         case "name":
           // overrides file name
           tasks.push(() => {
-            descriptorResult.generateName = data => buildName(arg, data);
+            descriptorResult.generateName = (data, file) => eval(arg);
             return Promise.resolve();
           });
           break;
@@ -145,8 +139,9 @@ self.buildSub = async function(cwd, args = []) {
   function buildTemplate(path) {
     return processTemplate(path).then(desc => {
       function innerBuild(desc, data) {
-        const fileName = desc.generateName(data);
-        const result = renderEJSTemplate(desc.content, data, fileName);
+        const [, originalFile ] = path.match(FILENAME_FROM_PATH_RX);
+        const fileName = desc.generateName(data, originalFile);
+        const result = renderEJSTemplate(desc.content, data, originalFile);
         let writePath = ["public", fileName].join("/");
         if(!options.quiet) console.log("compiled " + fileName);
         filew.writeFile(writePath, result);
