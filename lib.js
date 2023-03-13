@@ -15,8 +15,7 @@ const parseInstructions = filecontent => {
     const inst = getInstruction(cur);
     if(!inst) return acc;
     else {
-      const [line, cmd] = inst;
-      return [ ...acc, cmd.split(" ")];
+      return [ ...acc, inst[1]];
     }
   }, []);
 }
@@ -41,36 +40,45 @@ const processTemplate = filePath => {
   return filew.readFile(filePath).then(fileContents => {
     descriptorResult.path = filePath;
     descriptorResult.content = fileContents;
+    descriptorResult.data = {};
     const instructions = parseInstructions(fileContents);
     return chainPromises(instructions.reduce((tasks, inst) => {
-      const [cmd, arg] = inst;
+      const [cmd, ...arg] = inst.split(" ");
+      let kn, file, expression;
       switch(cmd) {
-        case "require":
+        case "load":
           // preload content from json file. Multiple invocations will override [data] value
+          [kn, file] = arg;
           tasks.push(() => {
-            return loadJson(arg).then(data => {
-              return descriptorResult.data = data;
+            return loadJson(file).then(cnt => {
+              descriptorResult.data[kn] = cnt;
             });
           })
           break;
         case "pick":
-          // reasign data to json path (after require)
+          // reasign data to json path (after load)
+          [kn, expression] = arg;
           tasks.push(() => {
-            descriptorResult.data = dlv(descriptorResult.data, arg);
+            descriptorResult.data[kn] = dlv(descriptorResult.data[kn], expression);
             return Promise.resolve();
           });
           break;
         case "each":
-          // generates a file for each entry in data (after require)
+          // generates a file for each entry in data[kn]
+          [kn, expression] = arg;
           tasks.push(() => {
-            descriptorResult.each = Array.isArray(descriptorResult.data);
+            if (expression) {
+              descriptorResult.each = dlv(descriptorResult.data[kn], expression);
+            } else {
+              descriptorResult.each = descriptorResult.data[kn];
+            }
             return Promise.resolve();
           });
           break;
         case "name":
           // overrides file name
           tasks.push(() => {
-            descriptorResult.generateName = (data, file) => eval(arg);
+            descriptorResult.generateName = ($data, $each, $file) => eval(arg[0]);
             return Promise.resolve();
           });
           break;
@@ -80,8 +88,8 @@ const processTemplate = filePath => {
   });
 }
 
-const renderEJSTemplate = (content, data, file) => {
-  return ejs.render(content, { data, file }, { views: ["templates"] }).trim();
+const renderEJSTemplate = (content, data, each, file) => {
+  return ejs.render(content, { $each: each, $file: file, $data: {...data} }, { views: ["templates"] }).trim();
 }
 
 const onlyTemplates = fileName => fileName.endsWith(".ejs"); // we do not want to include files that contain include files - keyword \inc\ ?
@@ -138,18 +146,25 @@ self.buildSub = async function(cwd, args = []) {
 
   function buildTemplate(path) {
     return processTemplate(path).then(desc => {
-      function innerBuild(desc, data) {
+      function innerBuild(desc, each) {
         const [, originalFile ] = path.match(FILENAME_FROM_PATH_RX);
-        const fileName = desc.generateName(data, originalFile);
-        const result = renderEJSTemplate(desc.content, data, originalFile);
+        let fileName;
+        if (typeof desc.generateName !== "function") {
+          fileName = originalFile + ".html";
+        } else {
+          fileName = desc.generateName(desc.data, each, originalFile);
+        }
+        const result = renderEJSTemplate(desc.content, desc.data, each, originalFile);
         let writePath = ["public", fileName].join("/");
         if(!options.quiet) console.log("compiled " + fileName);
         filew.writeFile(writePath, result);
       }
       if(desc.each) {
-        desc.data.forEach(dataItem => innerBuild(desc, dataItem));
+        desc.each.forEach(dataItem => {
+          innerBuild(desc, dataItem);
+        });
       } else {
-        innerBuild(desc, desc.data);
+        innerBuild(desc);
       }
     });
   }
